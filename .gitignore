@@ -1,0 +1,8 @@
+*.pyc
+__pycache__/
+
+logfile_wrapper.log
+config.py
+static/images
+static/bgs
+.idea
