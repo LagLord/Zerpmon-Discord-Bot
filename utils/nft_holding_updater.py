@@ -117,15 +117,15 @@ async def update_nft_holdings(client: nextcord.Client):
                         if serial == "trainer":
                             if v[serial] in t_serial:
                                 new_battle_deck[k][serial] = v[serial]
-                        if v[serial] in serials:
+                        elif v[serial] in serials:
                             new_battle_deck[k][serial] = v[serial]
 
-                logging.info(f'Serials {serials} \nnew deck: {new_battle_deck}')
+                logging.error(f'Serials {serials} \nnew deck: {new_battle_deck}')
                 user_obj["main_trainer"] = main_trainer
                 user_obj["mission_zerpmon"] = mission_zerpmon
                 user_obj["battle_deck"] = new_battle_deck
             except Exception as e:
-                logging.info(f"ERROR while updating NFTs: {e}")
+                logging.error(f"ERROR while updating NFTs: {e}")
 
             db_query.save_user({'main_trainer': user_obj["main_trainer"], 'mission_zerpmon': user_obj["mission_zerpmon"],
                                 'battle_deck': user_obj["battle_deck"], 'discord_id': user_obj["discord_id"],

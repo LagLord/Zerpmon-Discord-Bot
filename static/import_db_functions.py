@@ -4,7 +4,7 @@ import requests
 
 client = pymongo.MongoClient('mongodb://localhost:27017/')
 db = client['Zerpmon']
-users_c = db['users']
+# users_c = db['users']
 # users_c.drop()
 
 
@@ -25,7 +25,7 @@ def update_type(name, attrs):
 
 
 def import_moves():
-    with open('Zerpmon_Moves_-_Move_List.csv', 'r') as csvfile:
+    with open('Zerpmon_Moves_-_Move_List_1.csv', 'r') as csvfile:
         collection = db['MoveList']
         collection.drop()
         csvreader = csv.reader(csvfile)
@@ -44,9 +44,8 @@ def import_moves():
 
 
 def import_movesets():
-    with open('Zerpmon_Moves_-_Zerpmon_Movesets_Update_290523.csv', 'r') as csvfile:
+    with open('Zerpmon_Moves_-_Zerpmon_Movesets_1.csv', 'r') as csvfile:
         collection = db['MoveSets']
-        collection.drop()
         csvreader = csv.reader(csvfile)
         header = next(csvreader)  # Skip the header row
         header = [field.lower().split()[0] for field in header if field]
@@ -141,8 +140,8 @@ def clean_attrs():
                 print(r)
 
 
-# import_moves()
-# import_movesets()
+import_moves()
+import_movesets()
 # import_level()
 import_attrs_img()
 clean_attrs()

@@ -390,46 +390,26 @@
 #390,Detect,-,-,Blue,,#390
 #391,Fly,-,-,Blue,,#391
 #392,Illusion,-,-,Blue,,#392
-#393,,,,,,#393
-#394,,,,,,#394
 #395,Fatal Sneak Attack,Fighting,125,White,,#395
 #396,Dimensional Lazer,Cosmic,125,White,,#396
-#397,,,,,,#397
-#398,,,,,,#398
-#399,,,,,,#399
-#400,,,,,,#400
-#401,,,,,,#401
-#402,,,,,,#402
-#403,,,,,,#403
-#404,,,,,,#404
-#405,,,,,,#405
-#406,,,,,,#406
-#407,,,,,,#407
-#408,,,,,,#408
-#409,,,,,,#409
-#410,,,,,,#410
-#411,,,,,,#411
-#412,,,,,,#412
-#413,,,,,,#413
-#414,,,,,,#414
-#415,,,,,,#415
-#416,,,,,,#416
-#417,,,,,,#417
-#418,,,,,,#418
-#419,,,,,,#419
-#420,,,,,,#420
-#421,,,,,,#421
-#422,,,,,,#422
-#423,,,,,,#423
-#424,,,,,,#424
-#425,,,,,,#425
-#426,,,,,,#426
-#427,,,,,,#427
-#428,,,,,,#428
-#429,,,,,,#429
-#430,,,,,,#430
-,,,,,,
-,,,,,,
-,,,,,,
-,,,,,,
+#397,Death Hug,Normal,125,White,,#397
+#398,Soulfire Blast,Fire,125,White,,#398
+#399,Vortex Tsunami,Water,125,White,,#399
+#400,Roots ,Grass,125,White,,#400
+#401,Voltage Overload,Electric,125,White,,#401
+#402,Frozen Tundra,Ice,125,White,,#402
+#403,Venom Nova,Poison,125,White,,#403
+#404,Cataclysm,Ground,125,White,,#404
+#405,Gale Force Barrage,Flying,125,White,,#405
+#406,Reality Bend,Psychic,125,White,,#406
+#407,Insects Rising,Bug,125,White,,#407
+#408,Meteoric Impact,Rock,125,White,,#408
+#409,Phantom Abyss,Ghost,125,White,,#409
+#410,Whitefire,Dragon,125,White,,#410
+#411,Darkness Plunge,Dark,125,White,,#411
+#412,Absolute Iron,Steel,125,White,,#412
+#413,Piercing Sparkle,Fairy,125,White,,#413
+#414,Touch of Death,Undead,125,White,,#414
+#415,Cheeky Pinch,Normal,50,White,,#415
+#416,Malicious Pinch,Dark,70,Gold,,#416
 Move ID,Move Name,Type,Damage,Colour,Notes,Move ID
