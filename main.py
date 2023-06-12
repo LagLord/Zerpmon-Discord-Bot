@@ -7,10 +7,8 @@ import threading
 import time
 import traceback
 from typing import Optional
-
 import nextcord
 from nextcord import SlashOption, ButtonStyle
-
 from nextcord.ui import Button, View
 import config
 from nextcord.ext import commands
@@ -38,11 +36,6 @@ new_loop = asyncio.new_event_loop()
 t = threading.Thread(target=start_loop, args=(new_loop,))
 t.start()
 
-# new_loop2 = asyncio.new_event_loop()
-#
-# # start a new thread to run the event loop
-# t2 = threading.Thread(target=start_loop, args=(new_loop2,))
-# t2.start()
 new_loop.call_soon_threadsafe(new_loop.create_task, xrpl_ws.main())
 
 
@@ -320,8 +313,8 @@ async def button_callback(user_id, interaction: nextcord.Interaction, loser: int
                           mission_zerpmon_used: bool = False):
     _user_owned_nfts = {'data': db_query.get_owned(user_id), 'user': interaction.user.name}
     _b_num = 0 if 'battle' not in _user_owned_nfts['data'] else _user_owned_nfts['data']['battle']['num']
-    if _b_num >= 10:
-        if _user_owned_nfts['data']['battle']['reset_t'] > time.time():
+    if _b_num > 0:
+        if _user_owned_nfts['data']['battle']['reset_t'] > time.time() and _b_num >= 10:
 
             _hours, _minutes = await checks.get_time_left_utc()
 
@@ -348,7 +341,7 @@ async def button_callback(user_id, interaction: nextcord.Interaction, loser: int
                                        )
             button.callback = lambda i: use_mission_refill(i)
             return
-        else:
+        elif _user_owned_nfts['data']['battle']['reset_t'] < time.time():
             db_query.update_battle_count(user_id, -1)
             _b_num = 0
 
