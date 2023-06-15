@@ -25,14 +25,14 @@ async def update_nft_holdings(client: nextcord.Client):
         guilds = client.guilds
 
         for old_user in all_users:
+            user_obj = old_user
             try:
-                user_obj = old_user
                 if 'address' not in user_obj:
                     continue
                 good_status, nfts = await xrpl_functions.get_nfts(user_obj['address'])
 
-                main_trainer = user_obj["main_trainer"] if 'main_trainer' in user_obj else ""
-                mission_zerpmon = user_obj["mission_zerpmon"] if 'mission_zerpmon' in user_obj else ""
+                mission_trainer = user_obj["mission_trainer"] if 'mission_trainer' in user_obj else ""
+                mission_deck = user_obj["mission_deck"] if 'mission_deck' in user_obj else {}
                 battle_deck = user_obj["battle_deck"] if 'battle_deck' in user_obj else {}
 
                 serials = []
@@ -106,11 +106,12 @@ async def update_nft_holdings(client: nextcord.Client):
                                             print("USER already has the required role")
                             except Exception as e:
                                 print(f"USER already has the required role {e}")
-
-                if mission_zerpmon not in serials:
-                    mission_zerpmon = ""
-                if main_trainer not in t_serial:
-                    main_trainer = ""
+                new_mission_deck = {}
+                for k, v in mission_deck.items():
+                    if v in serials:
+                        new_mission_deck[k] = v
+                if mission_trainer not in t_serial:
+                    mission_trainer = ""
                 new_battle_deck = {'0': {}, '1': {}, '2': {}}
                 for k, v in battle_deck.items():
                     for serial in v:
@@ -121,13 +122,13 @@ async def update_nft_holdings(client: nextcord.Client):
                             new_battle_deck[k][serial] = v[serial]
 
                 logging.error(f'Serials {serials} \nnew deck: {new_battle_deck}')
-                user_obj["main_trainer"] = main_trainer
-                user_obj["mission_zerpmon"] = mission_zerpmon
+                user_obj["mission_trainer"] = mission_trainer
+                user_obj["mission_deck"] = new_mission_deck
                 user_obj["battle_deck"] = new_battle_deck
             except Exception as e:
                 logging.error(f"ERROR while updating NFTs: {e}")
 
-            db_query.save_user({'main_trainer': user_obj["main_trainer"], 'mission_zerpmon': user_obj["mission_zerpmon"],
+            db_query.save_user({'mission_trainer': user_obj["mission_trainer"], 'mission_deck': user_obj["mission_deck"],
                                 'battle_deck': user_obj["battle_deck"], 'discord_id': user_obj["discord_id"],
                                 'username': user_obj["username"]})
             await asyncio.sleep(2)

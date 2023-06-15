@@ -15,7 +15,7 @@ from nextcord.ext import commands
 import xumm_functions
 import xrpl_functions
 import db_query
-from utils import battle_function, nft_holding_updater, xrpl_ws, db_cleaner, checks, callback
+from utils import battle_function, nft_holding_updater, xrpl_ws, db_cleaner, checks, callback, reset_alert
 
 intents = nextcord.Intents.all()
 client = commands.AutoShardedBot(command_prefix="/", intents=intents)
@@ -43,6 +43,7 @@ async def updater():
     await asyncio.create_task(nft_holding_updater.update_nft_holdings(client))
 
 client.loop.create_task(updater())
+client.loop.create_task(reset_alert.send_reset_message(client))
 
 
 def execute_before_command(ctx: nextcord.Interaction):
@@ -309,169 +310,6 @@ async def battle(interaction: nextcord.Interaction, opponent: Optional[nextcord.
         config.ongoing_battles.remove(opponent.id)
 
 
-async def button_callback(user_id, interaction: nextcord.Interaction, loser: int = None,
-                          mission_zerpmon_used: bool = False):
-    _user_owned_nfts = {'data': db_query.get_owned(user_id), 'user': interaction.user.name}
-    _b_num = 0 if 'battle' not in _user_owned_nfts['data'] else _user_owned_nfts['data']['battle']['num']
-    if _b_num > 0:
-        if _user_owned_nfts['data']['battle']['reset_t'] > time.time() and _b_num >= 10:
-
-            _hours, _minutes = await checks.get_time_left_utc()
-
-            button = Button(label="Use Mission Refill Potion", style=ButtonStyle.green)
-            view = View()
-            view.add_item(button)
-            view.timeout = 120
-
-            try:
-                await interaction.edit(content=
-                                       f"Sorry you have reached the max **10** Missions for the day, either use a "
-                                       f"Mission "
-                                       f"Map refill or "
-                                       f" please wait **{_hours}**h **{_minutes}**m", embeds=[],
-                                       view=view
-                                       )
-            except:
-                await interaction.send(content=
-                                       f"Sorry you have reached the max **10** Missions for the day, either use a "
-                                       f"Mission Map refill or "
-                                       f" please wait **{_hours}**h **{_minutes}**m",
-                                       view=view,
-                                       ephemeral=True
-                                       )
-            button.callback = lambda i: use_mission_refill(i)
-            return
-        elif _user_owned_nfts['data']['battle']['reset_t'] < time.time():
-            db_query.update_battle_count(user_id, -1)
-            _b_num = 0
-
-    _active_zerpmons = [(k, i) for k, i in _user_owned_nfts['data']['zerpmons'].items()
-                        if 'active_t' not in i or
-                        i['active_t'] < time.time()]
-
-    # print(active_zerpmons[0])
-    r_button = Button(label="Revive Zerpmon", style=ButtonStyle.green)
-    r_view = View()
-    r_view.add_item(r_button)
-    r_view.timeout = 120
-    r_button.callback = lambda i: use_revive_potion(interaction)
-    if len(_active_zerpmons) == 0:
-
-        try:
-            await interaction.edit(content=
-                                   f"Sorry all Zerpmon are resting, please use a **revive** potion to use them "
-                                   f"immediately or "
-                                   f"wait for their **24hr** resting period",
-                                   view=r_view
-                                   )
-        except:
-            await interaction.send(content=
-                                   f"Sorry all Zerpmon are resting, please use a **revive** potion to use them "
-                                   f"immediately or "
-                                   f"wait for their **24hr** resting period",
-                                   view=r_view, ephemeral=True
-                                   )
-        return
-
-    #  Proceed with the challenge if check success
-    if loser == 1 or mission_zerpmon_used:
-        _battle_z = [_active_zerpmons[0]]
-    else:
-        _battle_z = [_active_zerpmons[0]] if 'mission_zerpmon' not in _user_owned_nfts['data'] or \
-                                             _user_owned_nfts['data']['mission_zerpmon'] == "" else \
-            [(k, i) for (k, i) in _active_zerpmons if k == _user_owned_nfts['data']['mission_zerpmon']]
-    if len(_battle_z) == 0:
-        next_button = Button(label="Battle with next Zerpmon", style=ButtonStyle.green)
-        r_view.add_item(next_button)
-        next_button.callback = lambda i: button_callback(user_id, i, 1, mission_zerpmon_used)
-        try:
-            await interaction.edit(content=
-                                   f"Sorry your current Zerpmon is resting, please use `/add mission`"
-                                   f" to set another Zerpmon for Missions or click the button below to Revive current one",
-                                   view=r_view
-                                   )
-        except:
-            await interaction.send(content=
-                                   f"Sorry your current Zerpmon is resting, please use `/add mission`"
-                                   f" to set another Zerpmon for Missions or click the button below to Revive current one",
-                                   view=r_view, ephemeral=True
-                                   )
-        return
-
-    try:
-        await interaction.edit(content="Mission starting, 🔍 for Opponent", view=View())
-    except:
-        await interaction.send(content="Mission starting, 🔍 for Opponent", ephemeral=True)
-
-    if user_id in config.ongoing_missions:
-        await interaction.send(f"Please wait, one mission is already taking place.",
-                               ephemeral=True)
-        return
-    config.ongoing_missions.append(user_id)
-
-    try:
-        loser = await battle_function.proceed_mission(interaction, user_id, _battle_z[0], _b_num)
-        if loser == 1:
-            mission_zerpmon_used = True
-    except Exception as e:
-        logging.error(f"ERROR during mission: {e}\n{traceback.format_exc()}")
-        return
-    finally:
-        config.ongoing_missions.remove(user_id)
-
-    button = Button(label="Battle Again" if loser == 2 else "Battle with next Zerpmon", style=ButtonStyle.green)
-    view = View()
-    view.add_item(button)
-    view.timeout = 120
-
-    button2 = Button(label="Use Mission Refill Potion", style=ButtonStyle.green)
-    view2 = View()
-    view2.add_item(button2)
-    view2.timeout = 120
-    button2.callback = lambda i: callback.use_missionP_callback(i)
-
-    _b_num += 1
-    reset_str = ''
-    if _b_num >= 10:
-        if _user_owned_nfts['data']['battle']['reset_t'] > time.time():
-            _hours, _minutes = await checks.get_time_left_utc()
-            reset_str = f' reset time **{_hours}**h **{_minutes}**m'
-
-    sr, nft = _battle_z[0]
-    lvl, xp, xp_req, _r, _m = db_query.get_lvl_xp(nft['name'])
-    embed = nextcord.Embed(title=f"Level Up ⬆{lvl}" if xp == 0 else f"\u200B",
-                           color=0xff5252,
-                           )
-    my_button = f"https://xrp.cafe/nft/{nft['token_id']}"
-    nft_type = ', '.join([i['value'] for i in nft['attributes'] if i['trait_type'] == 'Type'])
-    embed.add_field(
-        name=f"**{nft['name']}** ({nft_type})",
-        value=f'> Level: **{lvl}/30**\n'
-              f'> XP: **{xp}/{xp_req}**\n'
-              f'> [view]({my_button})', inline=False)
-    if xp == 0:
-        embed.add_field(name="Level Up Rewards: ",
-                        value=f"\u200B"
-                        ,
-                        inline=False)
-        embed.add_field(name="Revive All Potions: ",
-                        value=f"**{_r}**"
-                              + '\t🍶',
-                        inline=False)
-        embed.add_field(name="Mission Refill Potions: ",
-                        value=f"**{_m}**"
-                              + '\t🍶',
-                        inline=False)
-    embed.set_image(
-        url=nft['image'] if "https:/" in nft['image'] else 'https://cloudflare-ipfs.com/ipfs/' + nft[
-            'image'].replace("ipfs://", ""))
-    await interaction.send(embeds=[embed, nextcord.Embed(
-        title=f'**Remaining Missions** for the day: `{10 - _b_num}`')] if loser == 2 else [
-        nextcord.Embed(title=f'**Remaining Missions** for the day: `{10 - _b_num}`' + reset_str)]
-                           , view=(View() if loser == 1 else view2) if (10 - _b_num == 0) else view, ephemeral=True)
-    button.callback = lambda i: button_callback(user_id, i, loser, mission_zerpmon_used)
-
-
 @client.slash_command(name="mission",
                       description="PvE / Solo Combat missions for Zerpmon holders",
                       )
@@ -496,7 +334,7 @@ async def mission(interaction: nextcord.Interaction):
             )
             return
 
-    await button_callback(user_id, interaction, )
+    await callback.button_callback(user_id, interaction, )
 
 
 @client.slash_command(name="revive",
@@ -602,6 +440,30 @@ async def add(interaction: nextcord.Interaction):
     pass
 
 
+@add.subcommand(description="Set Trainer for Missions")
+async def mission_trainer(interaction: nextcord.Interaction, trainer_name: str = SlashOption("trainer_name"),
+                       ):
+    """
+    Deal with main Trainer
+    """
+    execute_before_command(interaction)
+    user = interaction.user
+    check_passed = await checks.check_trainer_cards(interaction, user, trainer_name)
+    if check_passed:
+        # await interaction.send(
+        #     f"**Adding to deck...**",
+        #     ephemeral=True)
+        saved = db_query.update_mission_trainer(trainer_name, user.id)
+        if not saved:
+            await interaction.send(
+                f"**Failed**, please recheck the ID or make sure you hold this Trainer",
+                ephemeral=True)
+        else:
+            await interaction.send(
+                f"**Success**",
+                ephemeral=True)
+
+
 @add.subcommand(description="Set Trainer for specific Battle Decks")
 async def trainer_deck(interaction: nextcord.Interaction, trainer_name: str = SlashOption("trainer_name"),
                        deck_number: str = SlashOption(
@@ -610,50 +472,35 @@ async def trainer_deck(interaction: nextcord.Interaction, trainer_name: str = Sl
                        ),
                        ):
     """
-    Deal with main Trainer
+    Deal with Trainer deck
     """
     execute_before_command(interaction)
     user = interaction.user
 
-    user_owned_nfts = {'data': db_query.get_owned(user.id), 'user': user.name}
-
-    # Sanity checks
-
-    for owned_nfts in [user_owned_nfts]:
-        if owned_nfts['data'] is None:
+    check_passed = await checks.check_trainer_cards(interaction, user, trainer_name)
+    if check_passed:
+        # await interaction.send(
+        #     f"**Adding to deck...**",
+        #     ephemeral=True)
+        saved = db_query.update_trainer_deck(trainer_name, user.id, deck_number)
+        if not saved:
             await interaction.send(
-                f"Sorry no NFTs found for **{owned_nfts['user']}** or haven't yet verified your wallet", ephemeral=True)
-            return
-
-        if len(owned_nfts['data']['trainer_cards']) == 0:
-            await interaction.send(
-                f"Sorry **0** Trainer cards found for **{owned_nfts['user']}**, need **1** to set inside the deck",
+                f"**Failed**, please recheck the ID or make sure you hold this Trainer",
                 ephemeral=True)
-            return
-
-        if trainer_name not in [i for i in
-                                list(owned_nfts['data']['trainer_cards'].keys())]:
+        else:
             await interaction.send(
-                f"**Failed**, please recheck the ID/Name or make sure you hold this Trainer Card",
+                f"**Success**",
                 ephemeral=True)
-            return
-
-    # await interaction.send(
-    #     f"**Adding to deck...**",
-    #     ephemeral=True)
-    saved = db_query.update_trainer_deck(trainer_name, user.id, deck_number)
-    if not saved:
-        await interaction.send(
-            f"**Failed**, please recheck the ID or make sure you hold this Trainer",
-            ephemeral=True)
-    else:
-        await interaction.send(
-            f"**Success**",
-            ephemeral=True)
 
 
 @add.subcommand(description="Set Zerpmon for Solo Missions")
-async def mission_deck(interaction: nextcord.Interaction, zerpmon_name: str = SlashOption("zerpmon_name"), ):
+async def mission_deck(interaction: nextcord.Interaction, zerpmon_name: str = SlashOption("zerpmon_name"),
+                       place_in_deck: int = SlashOption(
+                           name="place",
+                           choices={"1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5, "6th": 6,
+                                    "7th": 7, "8th": 8, "9th": 5, "10th": 10},
+                       ),
+                       ):
     """
     Deal with 1v1 Zerpmon deck
     """
@@ -685,7 +532,7 @@ async def mission_deck(interaction: nextcord.Interaction, zerpmon_name: str = Sl
     # await interaction.send(
     #     f"**Adding to deck...**",
     #     ephemeral=True)
-    saved = db_query.update_mission_deck(zerpmon_name, user.id)
+    saved = db_query.update_mission_deck(zerpmon_name, place_in_deck, user.id)
     if not saved:
         await interaction.send(
             f"**Failed**, please recheck the ID or make sure you hold this Zerpmon",
@@ -805,29 +652,32 @@ async def show_deck(interaction: nextcord.Interaction):
     embed = nextcord.Embed(title=f"**Mission** Zerpmon:\n",
                            color=0xff5252,
                            )
+    embedT = nextcord.Embed(title=f"**Mission** Trainer:\n",
+                           color=0xff5252,
+                           )
     embeds = []
 
-    if 'mission_zerpmon' not in owned_nfts:
+    if 'mission_deck' not in owned_nfts:
         pass
     else:
         found = True
-        serial = owned_nfts['mission_zerpmon']
-        if owned_nfts['mission_zerpmon'] == "":
-            embed.title = f"Sorry looks like you haven't selected a Zerpmon for Mission"
+        deck = owned_nfts['mission_deck']
+        if deck == {}:
+            embed.title = f"Sorry looks like you haven't selected Zerpmon for Missions"
 
         else:
-
-            nft = owned_nfts['zerpmons'][serial]
-            lvl, xp, xp_req, _r, _m = db_query.get_lvl_xp(nft['name'])
-            # zerpmon = db_query.get_zerpmon(nft['name'])
-            my_button = f"https://xrp.cafe/nft/{nft['token_id']}"
-            nft_type = ', '.join([i['value'] for i in nft['attributes'] if i['trait_type'] == 'Type'])
-            active = "🟢" if 'active_t' not in nft or nft['active_t'] < time.time() else "🔴"
-            embed.add_field(
-                name=f"{active}    #{serial}  **{nft['name']}** ({nft_type})",
-                value=f'> Level: **{lvl}**\n'
-                      f'> XP: **{xp}/{xp_req}**\n'
-                      f'> [view]({my_button})', inline=False)
+            for place, serial in deck.items():
+                nft = owned_nfts['zerpmons'][serial]
+                lvl, xp, xp_req, _r, _m = db_query.get_lvl_xp(nft['name'])
+                # zerpmon = db_query.get_zerpmon(nft['name'])
+                my_button = f"https://xrp.cafe/nft/{nft['token_id']}"
+                nft_type = ', '.join([i['value'] for i in nft['attributes'] if i['trait_type'] == 'Type'])
+                active = "🟢" if 'active_t' not in nft or nft['active_t'] < time.time() else "🔴"
+                embed.add_field(
+                    name=f"{active}    #{serial}  **{nft['name']}** ({nft_type})",
+                    value=f'> Level: **{lvl}**\n'
+                          f'> XP: **{xp}/{xp_req}**\n'
+                          f'> [view]({my_button})', inline=False)
             # for move in [i for i in zerpmon['moves'] if i['name'] != ""]:
             #     embed.add_field(
             #         name=f"**{config.COLOR_MAPPING[move['color']]} Move:**",
@@ -845,8 +695,28 @@ async def show_deck(interaction: nextcord.Interaction):
     # embed.add_field(
     #     name=f"----------------------------------",
     #     value='\u200B', inline=False)
+    if 'mission_trainer' not in owned_nfts:
+        pass
+    else:
+        found = True
+        serial = owned_nfts['mission_trainer']
+        if serial == "":
+            embedT.title = f"Sorry looks like you haven't selected a Zerpmon for Mission"
+
+        else:
+            trainer = owned_nfts['trainer_cards'][serial]
+            my_button = f"https://xrp.cafe/nft/{trainer['token_id']}"
+            embedT.add_field(
+                name=f"**{trainer['name']}**",
+                value=f'> [view]({my_button})', inline=False)
+            for attr in trainer['attributes']:
+                if attr["trait_type"] == 'Trainer Number':
+                    continue
+                embedT.add_field(name=f'{attr["trait_type"]}',
+                                 value=f'{config.TYPE_MAPPING[attr["value"]] if attr["trait_type"] == "Affinity" else attr["value"]}')
 
     embeds.append(embed)
+    embeds.append(embedT)
     if 'battle_deck' not in owned_nfts:
         pass
     else:
@@ -919,13 +789,6 @@ async def use_revive_potion(interaction: nextcord.Interaction):
         Deal with Reviving
         """
     res = await callback.use_reviveP_callback(interaction)
-    if res:
-        button = Button(label="Start Mission", style=ButtonStyle.green)
-        view = View()
-        view.add_item(button)
-        view.timeout = 60
-        button.callback = lambda i: button_callback(interaction.user.id, i, )
-        await interaction.send("**SUCCESS**", view=view, ephemeral=True)
 
 
 @use.subcommand(name="mission_refill", description="Use Mission Refill Potion to reset 10 missions for the day")
@@ -935,13 +798,7 @@ async def use_mission_refill(interaction: nextcord.Interaction):
             Deal with Mission refill
             """
     res = await callback.use_missionP_callback(interaction)
-    if res:
-        button = Button(label="Start Mission", style=ButtonStyle.green)
-        view = View()
-        view.add_item(button)
-        view.timeout = 60
-        button.callback = lambda i: button_callback(interaction.user.id, i, )
-        await interaction.send("**SUCCESS**", view=view, ephemeral=True)
+
 
 
 # @use.subcommand(description="Claim XRP earned from missions")
@@ -1872,6 +1729,7 @@ async def on_reaction_add(reaction: nextcord.Reaction, user: nextcord.User):
 
 # Autocomplete functions
 
+@mission_trainer.on_autocomplete("trainer_name")
 @trainer_deck.on_autocomplete("trainer_name")
 async def trainer_autocomplete(interaction: nextcord.Interaction, item: str):
     # Determine the choices for the trainer_name option based on a condition
@@ -1888,6 +1746,7 @@ async def trainer_autocomplete(interaction: nextcord.Interaction, item: str):
     await interaction.response.send_autocomplete(choices)
 
 
+@battle_deck.on_autocomplete("zerpmon_name")
 @mission_deck.on_autocomplete("zerpmon_name")
 async def mission_autocomplete(interaction: nextcord.Interaction, item: str):
     # Determine the choices for the trainer_name option based on a condition
@@ -1902,23 +1761,6 @@ async def mission_autocomplete(interaction: nextcord.Interaction, item: str):
                 break
             choices[v['name']] = k
     await interaction.response.send_autocomplete(choices)
-
-
-@battle_deck.on_autocomplete("zerpmon_name")
-async def battle_autocomplete(interaction: nextcord.Interaction, item: str):
-    # Determine the choices for the trainer_name option based on a condition
-    user_owned = db_query.get_owned(interaction.user.id)
-    cards = {k: v for k, v in user_owned['zerpmons'].items() if item.lower() in v['name'].lower()}
-    choices = {}
-    if (len(cards)) == 0:
-        pass
-    else:
-        for k, v in cards.items():
-            if len(choices) == 25:
-                break
-            choices[v['name']] = k
-    await interaction.response.send_autocomplete(choices)
-
 
 # Autocomplete functions
 

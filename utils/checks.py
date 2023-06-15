@@ -1,6 +1,10 @@
+import time
+
 import nextcord
 import datetime
 import pytz
+
+import db_query
 
 
 async def get_time_left_utc():
@@ -15,7 +19,6 @@ async def get_time_left_utc():
     # Extract the hours and minutes from the time difference
     hours_left = time_difference.total_seconds() // 3600
     minutes_left = (time_difference.total_seconds() % 3600) // 60
-
     return int(hours_left), int(minutes_left)
 
 
@@ -48,3 +51,28 @@ async def check_wager_entry(interaction: nextcord.Interaction, users):
     return True
 
 
+async def check_trainer_cards(interaction, user, trainer_name):
+    user_owned_nfts = {'data': db_query.get_owned(user.id), 'user': user.name}
+
+    # Sanity checks
+
+    for owned_nfts in [user_owned_nfts]:
+        if owned_nfts['data'] is None:
+            await interaction.send(
+                f"Sorry no NFTs found for **{owned_nfts['user']}** or haven't yet verified your wallet", ephemeral=True)
+            return False
+
+        if len(owned_nfts['data']['trainer_cards']) == 0:
+            await interaction.send(
+                f"Sorry **0** Trainer cards found for **{owned_nfts['user']}**, need **1** to set=",
+                ephemeral=True)
+            return False
+
+        if trainer_name not in [i for i in
+                                list(owned_nfts['data']['trainer_cards'].keys())]:
+            await interaction.send(
+                f"**Failed**, please recheck the ID/Name or make sure you hold this Trainer Card",
+                ephemeral=True)
+            return False
+
+    return True
