@@ -14,8 +14,8 @@ move_collection = db['MoveList']
 level_collection = db['levels']
 
 
-# for document in users_collection.find():
-#     print(document)
+# for document in db['users'].find():
+#     del document['mission']
 
 
 def save_user(user):
@@ -362,12 +362,37 @@ def update_trainer_deck(trainer_serial, user_id, deck_no):
         return False
 
 
-def update_mission_deck(zerpmon_serial, user_id):
+def update_mission_trainer(trainer_serial, user_id):
     users_collection = db['users']
+    update_query = {
+        f'mission_trainer': trainer_serial
+    }
 
     r = users_collection.update_one({'discord_id': str(user_id)},
-                                    {'$set': {f'mission_zerpmon': zerpmon_serial}})
-    # print(r)
+                                    {'$set': update_query})
+
+    if r.acknowledged:
+        return True
+    else:
+        return False
+
+
+def update_mission_deck(zerpmon_id, place, user_id):
+    users_collection = db['users']
+
+    doc = users_collection.find_one({'discord_id': str(user_id)})
+
+    # add the element to the array
+    arr = {} if "mission_deck" not in doc or doc["mission_deck"] == {} else doc["mission_deck"]
+    if arr != {}:
+        for k, v in arr.copy().items():
+            if v == zerpmon_id:
+                del arr[k]
+
+    arr[str(place - 1)] = zerpmon_id
+    # save the updated document
+    r = users_collection.update_one({'discord_id': str(user_id)}, {"$set": {'mission_deck': arr}})
+
     if r.acknowledged:
         return True
     else:

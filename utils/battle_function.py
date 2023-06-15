@@ -574,8 +574,8 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
     z1_type = [i['value'] for i in z1['attributes'] if i['trait_type'] == 'Type']
     buffed_type1 = []
     if len(_data1['trainer_cards']) > 0:
-        tc1 = list(_data1['trainer_cards'].values())[0] if ('battle_deck' not in _data1) or ('0' in _data1['battle_deck'] and ('trainer' not in _data1['battle_deck']['0'])) else \
-        _data1['trainer_cards'][_data1['battle_deck']['0']['trainer']]
+        tc1 = list(_data1['trainer_cards'].values())[0] if ('mission_trainer' not in _data1) or (_data1['mission_trainer'] == "") else \
+        _data1['trainer_cards'][_data1['mission_trainer']]
         buffed_type1 = [i for i in tc1['attributes'] if i['trait_type'] == 'Affinity' or i['trait_type'] == 'Type']
         if buffed_type1 != []:
             buffed_type1 = buffed_type1[0]['value']
@@ -724,7 +724,7 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
             move_counter += 1
             continue
 
-        if result['winner'] == '1' or lost == 2:
+        if (result['winner'] == '1' and lost == 0) or lost == 2:
             if lost == 0:
                 await interaction.send(content=f"{z1['name']} **knocked out** {z2['name']}!"  if '🎯' not in result['move1']['mul'] else f"**{z2['name']}**{random.sample(config.CRIT_STATEMENTS, 1)[0]}", ephemeral=True)
             eliminate = (2, z2['name'])
@@ -738,6 +738,7 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
             embed = nextcord.Embed(title=f"🏆 Mission Victory 🏆",
                                    color=0x8ef6e4)
             embed.add_field(name="XP", value=10, inline=True)
+            private = True
             for res in responses:
                 response, reward, qty, token_id = res
                 if reward is None:
@@ -747,10 +748,13 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
                 else:
                     embed.add_field(name=f"{reward}" + ' Won', value=qty, inline=True)
                 if reward == "NFT":
-                    embed.add_field(name=f"NFT ID: ", value=token_id, inline=True)
+                    embed.add_field(name=f"NFT", value=token_id, inline=True)
+                    embed.title = f'🔥 🔥 Congratulations {interaction.user.mention} just caught **{token_id}**!! 🔥 🔥\n@everyone'
+                    private = False
+
             await interaction.send(
                 embed=embed,
-                ephemeral=True)
+                ephemeral=private)
             if responses[0][1] in ["XRP", "NFT"]:
                 if not responses[0][0]:
 
@@ -759,13 +763,13 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
                         ephemeral=True)
                 else:
                     await interaction.send(
-                        f"**Successfully** sent `{responses[0][2]}` {responses[0][1]}",
+                        f"**Successfully** sent `{responses[0][2]}` {responses[0][2]}",
                         ephemeral=True)
 
             db_query.update_battle_count(user_id, old_num)
             move_counter += 1
 
-        elif result['winner'] == '2' or lost == 1:
+        elif (result['winner'] == '2' and lost == 0) or lost == 1:
             if lost == 0:
                 await interaction.send(content=f"{z2['name']} **knocked out** {z1['name']}!"  if '🎯' not in result['move1']['mul'] else f"**{z1['name']}**{random.sample(config.CRIT_STATEMENTS, 1)[0]}", ephemeral=True)
             eliminate = (1, z1['name'])

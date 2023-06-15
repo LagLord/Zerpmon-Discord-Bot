@@ -12,7 +12,7 @@ import requests
 # look up account nfts
 async def get_nfts(address):
     try:
-        client = AsyncJsonRpcClient("https://s2.ripple.com:51234/")
+        client = AsyncJsonRpcClient("https://xrplcluster.com/")
         all_nfts = []
 
         acct_info = AccountNFTs(

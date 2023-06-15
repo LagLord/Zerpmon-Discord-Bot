@@ -245,7 +245,7 @@ async def reward_user(user_id, zerpmon_name):
 
 
 async def send_random_zerpmon(to_address):
-    status, stored_nfts = xrpl_functions.get_nfts(Reward_address)
+    status, stored_nfts = await xrpl_functions.get_nfts(Reward_address)
     stored_zerpmons = [nft for nft in stored_nfts if nft["Issuer"] == config.ISSUER["Zerpmon"]]
     if status:
         new_token = True
@@ -255,7 +255,8 @@ async def send_random_zerpmon(to_address):
             if token_id in tokens_sent:
                 continue
             res = await send_nft('reward', to_address, token_id)
-            return res, token_id
+            nft_data = await xrpl_functions.get_nft_metadata(random_zerpmon['URI'])
+            return res, nft_data['name'] if 'name' in nft_data else token_id
 
 
 async def send_nft(from_, to_address, token_id):
@@ -412,3 +413,6 @@ async def get_nft_data_wager(id):
 
 # asyncio.run(accept_nft('reward', offer='D1B77539A65C2B9DBD70DC8AF6048BF76A7E7ABECA6A24ECF99F701F0FA1315E', sender='rBeistBLWtUskF2YzzSwMSM2tgsK7ZD7ME',
 #                        token='0008138874D997D20619837CF3C7E1050A785E9F9AC53D7E266278A90000010E'))
+
+# asyncio.run(xrpl_functions.get_nfts(Reward_address))
+# asyncio.run(xrpl_functions.get_nft_metadata('697066733A2F2F516D545338766152346559395A3575634558624136666975397465346B706A6652695464384A777A7947546A43462F3236392E6A736F6E'))
