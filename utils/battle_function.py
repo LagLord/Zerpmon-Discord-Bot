@@ -377,7 +377,7 @@ async def proceed_battle(message: nextcord.Message, battle_instance, b_type=5):
 
         url1 = zimg1 if "https:/" in zimg1 else 'https://cloudflare-ipfs.com/ipfs/' + zimg1.replace("ipfs://", "")
         main_embed.add_field(name=f"{z1['name']} ({', '.join(z1_type)})",
-                             value="🔥 Trainer buff" if buffed_type1 in z1_type else "\u200B", inline=False)
+                             value=f"{config.TYPE_MAPPING[buffed_type1]} Trainer buff" if buffed_type1 in z1_type else "\u200B", inline=False)
 
         for i, move in enumerate(z1_moves):
             if move['name'] == "":
@@ -399,7 +399,7 @@ async def proceed_battle(message: nextcord.Message, battle_instance, b_type=5):
 
         url2 = zimg2 if "https:/" in zimg2 else 'https://cloudflare-ipfs.com/ipfs/' + zimg2.replace("ipfs://", "")
         main_embed.add_field(name=f"{z2['name']} ({', '.join(z2_type)})",
-                             value="🔥 Trainer buff" if buffed_type2 in z2_type else "\u200B", inline=False)
+                             value=f"{config.TYPE_MAPPING[buffed_type2]} Trainer buff" if buffed_type2 in z2_type else "\u200B", inline=False)
 
         for i, move in enumerate(z2_moves):
             if move['name'] == "":
@@ -593,7 +593,7 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
 
     url1 = zimg1 if "https:/" in zimg1 else 'https://cloudflare-ipfs.com/ipfs/' + zimg1.replace("ipfs://", "")
     main_embed.add_field(name=f"{z1['name']} ({', '.join(z1_type)})",
-                         value="🔥 Trainer buff" if buffed_type1 in z1_type else "\u200B", inline=False)
+                         value=f"{config.TYPE_MAPPING[buffed_type1]} Trainer buff" if buffed_type1 in z1_type else "\u200B", inline=False)
 
     for i, move in enumerate(z1_moves):
         if move['name'] == "":

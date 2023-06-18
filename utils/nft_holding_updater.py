@@ -41,9 +41,11 @@ async def update_nft_holdings(client: nextcord.Client):
                 for nft in nfts:
 
                     if nft["Issuer"] == config.ISSUER["Trainer"]:
-
-                        metadata = await xrpl_functions.get_nft_metadata(nft['URI'])
                         serial = str(nft["nft_serial"])
+                        if serial in list(old_user['trainer_cards'].keys()):
+                            t_serial.append(serial)
+                            continue
+                        metadata = await xrpl_functions.get_nft_metadata(nft['URI'])
 
                         if "Zerpmon Trainers" in metadata['description']:
                             t_serial.append(serial)
@@ -53,12 +55,14 @@ async def update_nft_holdings(client: nextcord.Client):
                                      "attributes": metadata['attributes'],
                                      "token_id": nft["NFTokenID"],
                                      }
-                            if serial not in list(old_user['trainer_cards'].keys()):
-                                db_query.add_user_nft(user_obj['discord_id'], serial, new_z, True)
+                            db_query.add_user_nft(user_obj['discord_id'], serial, new_z, True)
                         await asyncio.sleep(2)
                     if nft["Issuer"] == config.ISSUER["Zerpmon"]:
-                        metadata = await xrpl_functions.get_nft_metadata(nft['URI'])
                         serial = str(nft["nft_serial"])
+                        if serial in list(old_user['zerpmons'].keys()):
+                            serials.append(serial)
+                            continue
+                        metadata = await xrpl_functions.get_nft_metadata(nft['URI'])
 
                         if "Zerpmon " in metadata['description']:
                             serials.append(serial)
@@ -73,8 +77,7 @@ async def update_nft_holdings(client: nextcord.Client):
                                      "token_id": nft["NFTokenID"],
                                      'active_t': active_t
                                      }
-                            if serial not in list(old_user['zerpmons'].keys()):
-                                db_query.add_user_nft(user_obj['discord_id'], serial, new_z, False)
+                            db_query.add_user_nft(user_obj['discord_id'], serial, new_z, False)
                         await asyncio.sleep(2)
                 for serial in list(old_user['zerpmons'].keys()):
                     if serial not in serials:

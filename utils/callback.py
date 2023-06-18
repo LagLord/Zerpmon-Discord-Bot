@@ -202,13 +202,15 @@ async def button_callback(user_id, interaction: nextcord.Interaction, loser: int
         next_button = Button(label="Battle with next Zerpmon", style=ButtonStyle.green)
         r_view.add_item(next_button)
         next_button.callback = lambda i: button_callback(user_id, i, 1, True)
-        try:
-            await interaction.edit(content=
-                                   f"Sorry your current Mission Zerpmon are resting, please use `/add mission_deck`"
-                                   f" to set other Zerpmon for Missions or click the button below to Revive selected ones",
-                                   view=r_view
+        if len(mission_deck_zerpmons) == 0:
+            r_view.remove_item(r_button)
+            await interaction.send(content=
+                                   f"Sorry you haven't selected Mission Zerpmon, please use `/add mission_deck`"
+                                   f" to set other Zerpmon for Missions or click the button below",
+                                   view=r_view, ephemeral=True
                                    )
-        except:
+        else:
+
             await interaction.send(content=
                                    f"Sorry your current Mission Zerpmon are resting, please use `/add mission_deck`"
                                    f" to set other Zerpmon for Missions or click the button below to Revive selected ones",

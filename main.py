@@ -498,7 +498,9 @@ async def mission_deck(interaction: nextcord.Interaction, zerpmon_name: str = Sl
                        place_in_deck: int = SlashOption(
                            name="place",
                            choices={"1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5, "6th": 6,
-                                    "7th": 7, "8th": 8, "9th": 5, "10th": 10},
+                                    "7th": 7, "8th": 8, "9th": 9, "10th": 10, "11th": 11, "12th": 12, "13th": 13, "14th": 14, "15th": 15, "16th": 16,
+                                    "17th": 17, "18th": 18, "19th": 19, "20th": 20
+                                    },
                        ),
                        ):
     """

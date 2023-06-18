@@ -1,9 +1,6 @@
 import json
-import time
-
 from pymongo import MongoClient, ReturnDocument, DESCENDING
 import config
-from utils import checks
 
 client = MongoClient(config.MONGO_URL)
 db = client['Zerpmon']
@@ -12,10 +9,6 @@ db = client['Zerpmon']
 
 move_collection = db['MoveList']
 level_collection = db['levels']
-
-
-# for document in db['users'].find():
-#     del document['mission']
 
 
 def save_user(user):
@@ -216,8 +209,9 @@ def update_zerpmon_alive(zerpmon, serial, user_id):
 
 
 def update_battle_count(user_id, num):
+    from utils.checks import get_next_ts
     users_collection = db['users']
-    new_ts = checks.get_next_ts()
+    new_ts = get_next_ts()
     r = users_collection.find_one({'discord_id': str(user_id)})
     if 'battle' in r and r['battle']['num'] > 0 and new_ts - r['battle']['reset_t'] > 80000:
         num = -1
@@ -523,6 +517,8 @@ def get_lvl_xp(zerpmon_name) -> tuple:
 
     old = zerpmon_collection.find_one({'name': zerpmon_name})
     level = old['level'] + 1 if 'level' in old else 1
+    if (level - 1) >= 10 and (level - 1) % 10 == 0 and old['xp'] == 0:
+        update_moves(old)
     if level > 30:
         level = 30
     last_lvl = level_collection.find_one({'level': (level - 1) if level > 1 else 1})
@@ -534,3 +530,41 @@ def get_lvl_xp(zerpmon_name) -> tuple:
     else:
         return 0, 0, next_lvl['xp_required'], last_lvl['revive_potion_reward'], \
                last_lvl['mission_potion_reward']
+
+
+def update_moves(document):
+    if 'level' in document and document['level'] / 10 >= 1:
+        miss_percent = float([i for i in document['moves'] if i['color'] == 'miss'][0]['percent'])
+        percent_change = 3.33 if 3.33 < miss_percent else miss_percent
+        count = len([i for i in document['moves'] if i['name'] != ""]) - 1
+        print(document)
+        for i, move in enumerate(document['moves']):
+            if move['color'] == 'miss':
+                move['percent'] = str(round(float(move['percent']) - percent_change, 2))
+                document['moves'][i] = move
+            elif move['name'] != "" and float(move['percent']) > 0:
+                move['percent'] = str(round(float(move['percent']) + (percent_change / count), 2))
+                document['moves'][i] = move
+        del document['_id']
+        save_new_zerpmon(document)
+
+
+def update_all_zerp_moves():
+    for document in db['MoveSets'].find():
+        if 'level' in document and document['level'] / 10 >= 1:
+            miss_percent = float([i for i in document['moves'] if i['color'] == 'miss'][0]['percent'])
+            percent_change = 3.33 * (document['level'] // 10)
+            percent_change = percent_change if percent_change < miss_percent else miss_percent
+            count = len([i for i in document['moves'] if i['name'] != ""]) - 1
+            print(document)
+            for i, move in enumerate(document['moves']):
+                if move['color'] == 'miss':
+                    move['percent'] = str(round(float(move['percent']) - percent_change, 2))
+                    document['moves'][i] = move
+                elif move['name'] != "" and float(move['percent']) > 0:
+                    move['percent'] = str(round(float(move['percent']) + (percent_change / count), 2))
+                    document['moves'][i] = move
+            del document['_id']
+            save_new_zerpmon(document)
+
+update_all_zerp_moves()

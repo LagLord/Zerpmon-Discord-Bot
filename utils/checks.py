@@ -4,7 +4,7 @@ import nextcord
 import datetime
 import pytz
 
-import db_query
+from db_query import get_owned
 
 
 async def get_time_left_utc():
@@ -52,7 +52,7 @@ async def check_wager_entry(interaction: nextcord.Interaction, users):
 
 
 async def check_trainer_cards(interaction, user, trainer_name):
-    user_owned_nfts = {'data': db_query.get_owned(user.id), 'user': user.name}
+    user_owned_nfts = {'data': get_owned(user.id), 'user': user.name}
 
     # Sanity checks
 
