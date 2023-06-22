@@ -13,6 +13,13 @@ import xumm_functions
 from utils import checks, battle_function
 
 
+class CustomEmbed(nextcord.Embed):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.set_footer(text='Zerpmon',
+                        icon_url=config.ICON_URL)
+
+
 async def purchase_callback(_i: nextcord.Interaction, amount, qty=1):
     try:
         await _i.edit(content="Generating transaction QR code...", embeds=[], view=None)
@@ -26,8 +33,8 @@ async def purchase_callback(_i: nextcord.Interaction, amount, qty=1):
     send_amt = (amount * qty) if str(user_id) in config.store_24_hr_buyers else (amount * (qty - 1 / 2))
     user_address = db_query.get_owned(_i.user.id)['address']
     uuid, url, href = await xumm_functions.gen_txn_url(config.STORE_ADDR, user_address, send_amt * 10 ** 6)
-    embed = nextcord.Embed(color=0x01f39d, title=f"Please sign the transaction using this QR code or click here.",
-                           url=href)
+    embed = CustomEmbed(color=0x01f39d, title=f"Please sign the transaction using this QR code or click here.",
+                        url=href)
 
     embed.set_image(url=url)
 
@@ -36,9 +43,9 @@ async def purchase_callback(_i: nextcord.Interaction, amount, qty=1):
     for i in range(18):
         if user_id in config.latest_purchases:
             config.latest_purchases.remove(user_id)
-            await _i.send(embed=nextcord.Embed(title="**Success**",
-                                               description=f"Bought **{qty}** {'Revive All Potion' if amount in [8.99, 4.495] else 'Mission Refill Potion'}",
-                                               ), ephemeral=True)
+            await _i.send(embed=CustomEmbed(title="**Success**",
+                                            description=f"Bought **{qty}** {'Revive All Potion' if amount in [8.99, 4.495] else 'Mission Refill Potion'}",
+                                            ), ephemeral=True)
         await asyncio.sleep(10)
 
 
@@ -46,7 +53,7 @@ async def show_store(interaction: nextcord.Interaction):
     user = interaction.user
 
     user_owned_nfts = db_query.get_owned(user.id)
-    main_embed = nextcord.Embed(title="Store Holdings", color=0xfcff82)
+    main_embed = CustomEmbed(title="Store Holdings", color=0xfcff82)
     # Sanity checks
 
     for owned_nfts in [user_owned_nfts]:
@@ -80,7 +87,7 @@ async def show_store(interaction: nextcord.Interaction):
 
 async def store_callback(interaction: nextcord.Interaction):
     user_id = interaction.user.id
-    main_embed = nextcord.Embed(title="Zerpmon Store", color=0xfcff82)
+    main_embed = CustomEmbed(title="Zerpmon Store", color=0xfcff82)
     main_embed.add_field(name="**Revive All Potions**" + '\t🍹',
                          value=f"Cost: `{config.POTION[0]} XRP`" if str(user_id) in config.store_24_hr_buyers else
                          f"Cost: `{config.POTION[0] / 2:.5f} XRP` \n(🥳 Half price for first purchase every 24hr 🥳)",
@@ -165,8 +172,8 @@ async def button_callback(user_id, interaction: nextcord.Interaction, loser: int
     _active_zerpmons = [(k, i) for k, i in _user_owned_nfts['data']['zerpmons'].items()
                         if 'active_t' not in i or
                         i['active_t'] < time.time()]
-    mission_deck_zerpmons = [] if 'mission_deck' not in _user_owned_nfts['data'] else\
-        [k for k in list(_user_owned_nfts['data']['mission_deck'].values()) if k in [s for (s,i) in _active_zerpmons]]
+    mission_deck_zerpmons = [] if 'mission_deck' not in _user_owned_nfts['data'] else \
+        [k for k in list(_user_owned_nfts['data']['mission_deck'].values()) if k in [s for (s, i) in _active_zerpmons]]
 
     # print(active_zerpmons[0])
     r_button = Button(label="Revive Zerpmon", style=ButtonStyle.green)
@@ -197,18 +204,20 @@ async def button_callback(user_id, interaction: nextcord.Interaction, loser: int
         _battle_z = [_active_zerpmons[0]]
     else:
         _battle_z = [] if len(mission_deck_zerpmons) == 0 else \
-                [(k, i) for (k, i) in _active_zerpmons if k == mission_deck_zerpmons[0]]
+            [(k, i) for (k, i) in _active_zerpmons if k == mission_deck_zerpmons[0]]
     if len(_battle_z) == 0:
         next_button = Button(label="Battle with next Zerpmon", style=ButtonStyle.green)
         r_view.add_item(next_button)
         next_button.callback = lambda i: button_callback(user_id, i, 1, True)
-        try:
-            await interaction.edit(content=
-                                   f"Sorry your current Mission Zerpmon are resting, please use `/add mission_deck`"
-                                   f" to set other Zerpmon for Missions or click the button below to Revive selected ones",
-                                   view=r_view
+        if len(mission_deck_zerpmons) == 0:
+            r_view.remove_item(r_button)
+            await interaction.send(content=
+                                   f"Sorry you haven't selected Mission Zerpmon, please use `/add mission_deck`"
+                                   f" to set other Zerpmon for Missions or click the button below",
+                                   view=r_view, ephemeral=True
                                    )
-        except:
+        else:
+
             await interaction.send(content=
                                    f"Sorry your current Mission Zerpmon are resting, please use `/add mission_deck`"
                                    f" to set other Zerpmon for Missions or click the button below to Revive selected ones",
@@ -254,10 +263,10 @@ async def button_callback(user_id, interaction: nextcord.Interaction, loser: int
             reset_str = f' reset time **{_hours}**h **{_minutes}**m'
 
     sr, nft = _battle_z[0]
-    lvl, xp, xp_req, _r, _m = db_query.get_lvl_xp(nft['name'])
-    embed = nextcord.Embed(title=f"Level Up ⬆{lvl}" if xp == 0 else f"\u200B",
-                           color=0xff5252,
-                           )
+    lvl, xp, xp_req, _r, _m = db_query.get_lvl_xp(nft['name'], in_mission=True)
+    embed = CustomEmbed(title=f"Level Up ⬆{lvl}" if xp == 0 else f"\u200B",
+                        color=0xff5252,
+                        )
     my_button = f"https://xrp.cafe/nft/{nft['token_id']}"
     nft_type = ', '.join([i['value'] for i in nft['attributes'] if i['trait_type'] == 'Type'])
     embed.add_field(
@@ -281,9 +290,9 @@ async def button_callback(user_id, interaction: nextcord.Interaction, loser: int
     embed.set_image(
         url=nft['image'] if "https:/" in nft['image'] else 'https://cloudflare-ipfs.com/ipfs/' + nft[
             'image'].replace("ipfs://", ""))
-    await interaction.send(embeds=[embed, nextcord.Embed(
+    await interaction.send(embeds=[embed, CustomEmbed(
         title=f'**Remaining Missions** for the day: `{10 - _b_num}`')] if loser == 2 else [
-        nextcord.Embed(title=f'**Remaining Missions** for the day: `{10 - _b_num}`' + reset_str)]
+        CustomEmbed(title=f'**Remaining Missions** for the day: `{10 - _b_num}`' + reset_str)]
                            , view=(View() if loser == 1 else view2) if (10 - _b_num == 0) else view, ephemeral=True)
     button.callback = lambda i: button_callback(user_id, i, loser, mission_zerpmon_used)
 

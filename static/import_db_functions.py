@@ -140,7 +140,7 @@ def clean_attrs():
                 print(r)
 
 
-import_moves()
+# import_moves()
 import_movesets()
 # import_level()
 import_attrs_img()
