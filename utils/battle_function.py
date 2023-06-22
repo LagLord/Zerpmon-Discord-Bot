@@ -12,6 +12,14 @@ import config
 import db_query
 from utils import xrpl_ws, checks
 
+
+class CustomEmbed(nextcord.Embed):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.set_footer(text='Zerpmon',
+                        icon_url=config.ICON_URL)
+
+
 with open("./TypingMultipliers.json", 'r') as file:
     file = json.load(file)
     type_mapping = dict(file)
@@ -264,7 +272,7 @@ async def proceed_battle(message: nextcord.Message, battle_instance, b_type=5):
     _data1 = db_query.get_owned(battle_instance["challenger"])
     _data2 = db_query.get_owned(battle_instance["challenged"])
 
-    trainer_embed = nextcord.Embed(title=f"Trainers Battle",
+    trainer_embed = CustomEmbed(title=f"Trainers Battle",
                                    description=f"({battle_instance['username1']} VS {battle_instance['username2']})", color=0xf23557)
 
     user1_zerpmons = _data1['zerpmons']
@@ -369,7 +377,7 @@ async def proceed_battle(message: nextcord.Message, battle_instance, b_type=5):
         zimg2 = z2['image']
         z2_type = [i['value'] for i in z2['attributes'] if i['trait_type'] == 'Type']
 
-        main_embed = nextcord.Embed(title="Zerpmon rolling attacks...", color=0x35bcbf)
+        main_embed = CustomEmbed(title="Zerpmon rolling attacks...", color=0x35bcbf)
 
         path1 = f"./static/images/{z1['name']}.png"
         path2 = f"./static/images/vs.png"
@@ -585,7 +593,7 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
     zimg2 = z2['image']
     z2_type = [i['value'] for i in z2['attributes'] if i['trait_type'] == 'Type']
 
-    main_embed = nextcord.Embed(title="Zerpmon rolling attacks...", color=0x8971d0)
+    main_embed = CustomEmbed(title="Zerpmon rolling attacks...", color=0x8971d0)
 
     path1 = f"./static/images/{z1['name']}.png"
     path2 = f"./static/images/vs.png"
@@ -735,7 +743,7 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
             db_query.update_user_wr(user_id, 1)
             # Reward user on a Win
             responses = await xrpl_ws.reward_user(user_id, z1['name'])
-            embed = nextcord.Embed(title=f"🏆 Mission Victory 🏆",
+            embed = CustomEmbed(title=f"🏆 Mission Victory 🏆",
                                    color=0x8ef6e4)
             embed.add_field(name="XP", value=10, inline=True)
             private = True
@@ -749,7 +757,7 @@ async def proceed_mission(interaction: nextcord.Interaction, user_id, active_zer
                     embed.add_field(name=f"{reward}" + ' Won', value=qty, inline=True)
                 if reward == "NFT":
                     embed.add_field(name=f"NFT", value=token_id, inline=True)
-                    embed.title = f'🔥 🔥 Congratulations {interaction.user.mention} just caught **{token_id}**!! 🔥 🔥\n@everyone'
+                    embed.description = f'🔥 🔥 Congratulations {interaction.user.mention} just caught **{token_id}**!! 🔥 🔥\n@everyone'
                     private = False
 
             await interaction.send(

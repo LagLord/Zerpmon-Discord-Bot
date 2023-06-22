@@ -1,12 +1,15 @@
-import asyncio
+import db_query
+import pandas as pd
 
-import config
-import xrpl_functions
+data = []
+df = pd.DataFrame(columns=['Zerpmon', 'Total Matches', 'Winrate'])
+for document in db_query.get_all_z():
+    if 'total' in document:
+        data.append({'Zerpmon': document['name'], 'Total Matches': document['total'], 'Winrate': round(document['winrate'], 2)})
+    else:
+        data.append({'Zerpmon': document['name'], 'Total Matches': 0, 'Winrate': 0})
 
+df = pd.concat([df, pd.DataFrame(data)], ignore_index=True)
 
-async def test():
-    status, nfts = await xrpl_functions.get_nfts('')
-    for nft in nfts:
-        if nft["Issuer"] == config.ISSUER["Zerpmon"]:
-            print(nft)
-asyncio.run(test())
+print(df)
+df.to_excel("winrates.xlsx", index=False, header=True)

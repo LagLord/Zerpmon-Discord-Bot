@@ -1,4 +1,6 @@
 import json
+import time
+
 from pymongo import MongoClient, ReturnDocument, DESCENDING
 import config
 
@@ -306,6 +308,36 @@ def get_pvp_top_players(user_id):
     return [i for i in top_users]
 
 
+def get_ranked_players(user_id):
+    users_collection = db['users']
+    user_id = str(user_id)
+    query = {'rank': {'$exists': True}}
+    top_users = users_collection.find(query).sort('rank.points', DESCENDING)
+    curr_user = users_collection.find_one({'discord_id': user_id})
+    if curr_user:
+        curr_user_rank = users_collection.count_documents({'rank.points': {'$gt': curr_user['rank']['points'] if 'rank'
+                                                                           in curr_user else 0}})
+        curr_user['ranked'] = curr_user_rank + 1
+        top_users_count = users_collection.count_documents(query)
+
+        rank_limit = 4  # Number of players above and below to show
+        rank_above = max(0, curr_user['ranked'] - rank_limit)
+        rank_below = min(top_users_count, curr_user['ranked'] + rank_limit + 1)
+
+        top_users = list(top_users[rank_above:rank_below])
+        for i, user in enumerate(top_users):
+            top_users[i]['ranked'] = rank_above + 1
+            rank_above += 1
+
+        if curr_user['discord_id'] not in [i['discord_id'] for i in top_users]:
+            if 'rank' not in curr_user:
+                curr_user['rank'] = {'tier': 'Unranked', 'points': 0}
+            top_users.append(curr_user)
+        return top_users
+    else:
+        return list(top_users[:10])
+
+
 def add_revive_potion(address, inc_by):
     users_collection = db['users']
 
@@ -512,12 +544,12 @@ def add_xp(zerpmon_name, user_address):
     return True
 
 
-def get_lvl_xp(zerpmon_name) -> tuple:
+def get_lvl_xp(zerpmon_name, in_mission=False) -> tuple:
     zerpmon_collection = db['MoveSets']
 
     old = zerpmon_collection.find_one({'name': zerpmon_name})
     level = old['level'] + 1 if 'level' in old else 1
-    if (level - 1) >= 10 and (level - 1) % 10 == 0 and old['xp'] == 0:
+    if in_mission and (level - 1) >= 10 and (level - 1) % 10 == 0 and old['xp'] == 0:
         update_moves(old)
     if level > 30:
         level = 30
@@ -531,6 +563,46 @@ def get_lvl_xp(zerpmon_name) -> tuple:
         return 0, 0, next_lvl['xp_required'], last_lvl['revive_potion_reward'], \
                last_lvl['mission_potion_reward']
 
+
+# RANK QUERY
+
+def update_rank(user_id, win, decay=False):
+    users_collection = db['users']
+    usr = get_owned(user_id)
+    next_rank = None
+    if 'rank' in usr:
+        rank = usr['rank']
+    else:
+        rank = {
+            'tier': 'Unranked',
+            'points': 0,
+        }
+    user_rank_d = config.RANKS[rank['tier']]
+    if decay:
+        decay_tiers = config.TIERS[-2:]
+        rank['points'] -= 50 if rank['tier'] == decay_tiers[0] else 100
+    elif win:
+        rank['points'] += user_rank_d['win']
+    else:
+        rank['points'] -= user_rank_d['loss']
+        if rank['points'] < 0:
+            return 0
+    if win and rank['points'] > user_rank_d['h']:
+        next_rank = [r for r, v in config.RANKS.items() if v['l'] == user_rank_d['h']][0]
+        rank['tier'] = next_rank
+    elif rank['points'] < user_rank_d['l']:
+        next_rank = [r for r, v in config.RANKS.items() if v['h'] == user_rank_d['l']][0]
+        rank['tier'] = next_rank
+    if not decay:
+        rank['last_battle_t'] = time.time()
+    users_collection.update_one({'discord_id': str(user_id)},
+                                {'$set': {'rank': rank}}
+                                )
+    return user_rank_d['win'] if win else user_rank_d['loss'], rank['tier'], next_rank
+    # print(r)
+
+
+# MOVES UPDATE QUERY
 
 def update_moves(document):
     if 'level' in document and document['level'] / 10 >= 1:
@@ -548,23 +620,22 @@ def update_moves(document):
         del document['_id']
         save_new_zerpmon(document)
 
-
-def update_all_zerp_moves():
-    for document in db['MoveSets'].find():
-        if 'level' in document and document['level'] / 10 >= 1:
-            miss_percent = float([i for i in document['moves'] if i['color'] == 'miss'][0]['percent'])
-            percent_change = 3.33 * (document['level'] // 10)
-            percent_change = percent_change if percent_change < miss_percent else miss_percent
-            count = len([i for i in document['moves'] if i['name'] != ""]) - 1
-            print(document)
-            for i, move in enumerate(document['moves']):
-                if move['color'] == 'miss':
-                    move['percent'] = str(round(float(move['percent']) - percent_change, 2))
-                    document['moves'][i] = move
-                elif move['name'] != "" and float(move['percent']) > 0:
-                    move['percent'] = str(round(float(move['percent']) + (percent_change / count), 2))
-                    document['moves'][i] = move
-            del document['_id']
-            save_new_zerpmon(document)
-
-update_all_zerp_moves()
+# def update_all_zerp_moves():
+#     for document in db['MoveSets'].find():
+#         if 'level' in document and document['level'] / 10 >= 1:
+#             miss_percent = float([i for i in document['moves'] if i['color'] == 'miss'][0]['percent'])
+#             percent_change = 3.33 * (document['level'] // 10)
+#             percent_change = percent_change if percent_change < miss_percent else miss_percent
+#             count = len([i for i in document['moves'] if i['name'] != ""]) - 1
+#             print(document)
+#             for i, move in enumerate(document['moves']):
+#                 if move['color'] == 'miss':
+#                     move['percent'] = str(round(float(move['percent']) - percent_change, 2))
+#                     document['moves'][i] = move
+#                 elif move['name'] != "" and float(move['percent']) > 0:
+#                     move['percent'] = str(round(float(move['percent']) + (percent_change / count), 2))
+#                     document['moves'][i] = move
+#             del document['_id']
+#             save_new_zerpmon(document)
+#
+# update_all_zerp_moves()
