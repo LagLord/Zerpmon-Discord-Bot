@@ -586,11 +586,11 @@ def update_rank(user_id, win, decay=False):
     else:
         rank['points'] -= user_rank_d['loss']
         if rank['points'] < 0:
-            return 0
-    if win and rank['points'] > user_rank_d['h']:
+            return 0, rank, next_rank
+    if rank['points'] >= user_rank_d['h']:
         next_rank = [r for r, v in config.RANKS.items() if v['l'] == user_rank_d['h']][0]
         rank['tier'] = next_rank
-    elif rank['points'] < user_rank_d['l']:
+    elif rank['points'] <= user_rank_d['l']:
         next_rank = [r for r, v in config.RANKS.items() if v['h'] == user_rank_d['l']][0]
         rank['tier'] = next_rank
     if not decay:
@@ -598,7 +598,7 @@ def update_rank(user_id, win, decay=False):
     users_collection.update_one({'discord_id': str(user_id)},
                                 {'$set': {'rank': rank}}
                                 )
-    return user_rank_d['win'] if win else user_rank_d['loss'], rank['tier'], next_rank
+    return user_rank_d['win'] if win else user_rank_d['loss'], rank, next_rank
     # print(r)
 
 

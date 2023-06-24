@@ -104,6 +104,7 @@ async def check_battle(user_id, opponent, interaction, battle_nickname):
         user_rank_tier = config.TIERS.index(user_rank)
         opponent_rank = opponent_owned_nfts['data']['rank']['tier'] if 'rank' in opponent_owned_nfts['data'] else 'Unranked'
         oppo_rank_tier = config.TIERS.index(opponent_rank)
+        print(user_rank_tier, [oppo_rank_tier, oppo_rank_tier - 1, oppo_rank_tier + 1])
         if user_rank_tier not in [oppo_rank_tier, oppo_rank_tier - 1, oppo_rank_tier + 1]:
             await interaction.send(
                 f"Sorry you can't battle **{opponent_rank}** with your current {user_rank} Rank.")
@@ -113,19 +114,31 @@ async def check_battle(user_id, opponent, interaction, battle_nickname):
         return False
 
     for owned_nfts in [user_owned_nfts, opponent_owned_nfts]:
-        if owned_nfts['data'] is None:
+        user_d = owned_nfts['data']
+        if user_d is None:
             await interaction.send(
                 f"Sorry no NFTs found for **{owned_nfts['user']}** or haven't yet verified your wallet")
             return False
 
-        if len(owned_nfts['data']['zerpmons']) == 0:
+        if len(user_d['zerpmons']) == 0:
             await interaction.send(
                 f"Sorry **0** Zerpmon found for **{owned_nfts['user']}**, need **1** to start doing {battle_nickname} battles")
             return False
 
-        if len(owned_nfts['data']['trainer_cards']) == 0:
+        if len(user_d['trainer_cards']) == 0:
             await interaction.send(
                 f"Sorry **0** Trainer cards found for **{owned_nfts['user']}**, need **1** to start doing {battle_nickname} battles")
             return False
-
+        if battle_nickname == 'Ranked' and 'battle_deck' in user_d and len(user_d['battle_deck']) > 0 and len(user_d['battle_deck']['0']) < 4:
+            def_deck = user_d['battle_deck']['0']
+            if 'trainer' not in def_deck:
+                await interaction.send(
+                    f"**{owned_nfts['user']}** you haven't set your Trainer in default deck, "
+                    f"please set it and try again")
+                return False
+            else:
+                await interaction.send(
+                    f"**{owned_nfts['user']}** your default deck contains {len(def_deck) - 1} Zerpmon, "
+                    f"need 3 to do {battle_nickname} battles.")
+                return False
     return True
