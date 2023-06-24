@@ -520,13 +520,13 @@ async def mission_deck(interaction: nextcord.Interaction, zerpmon_name: str = Sl
 
 @add.subcommand(description="Add Zerpmon to a specific Battle Deck (max 5)")
 async def battle_deck(interaction: nextcord.Interaction, zerpmon_name: str = SlashOption("zerpmon_name"),
-                      deck_number: str = SlashOption(
-                          name="deck_number",
-                          choices={"1st": '0', "2nd": '1', "3rd": '2'},
-                      ),
                       place_in_deck: int = SlashOption(
                           name="place",
                           choices={"1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5},
+                      ),
+                      deck_number: str = SlashOption(
+                          name="deck_number",
+                          choices={"1st": '0', "2nd": '1', "3rd": '2'},
                       ),
                       ):
     """
@@ -1668,7 +1668,7 @@ async def trade_nft(interaction: nextcord.Interaction, your_nft_id: str, opponen
 # RANKED COMMANDS
 
 @client.slash_command(name="ranked_battle",
-                      description="3v3 Ranked battle among Trainers (require: 1 Zerpmon and 1 Trainer card)",
+                      description="3v3 Ranked battle among Trainers (require: 3 Zerpmon and 1 Trainer card)",
                       )
 async def ranked_battle(interaction: nextcord.Interaction,
                         opponent: Optional[nextcord.Member] = SlashOption(required=True), ):
@@ -1726,13 +1726,15 @@ async def view_rank(interaction: nextcord.Interaction):
 
     for i, user in enumerate(users):
         if str(interaction.user.id) == user['discord_id']:
-            msg = '#{0:<4} {1:<20} TIER: {2:<12} POINTS : {3:>2}'.format(user['ranked'], user['username'], user['rank']['tier'],
-                                                               user['rank']['points'])
+            msg = '#{0:<4} {1:<20} TIER: {2:<12} ZP : {3:>2}'.format(user['ranked'], user['username'],
+                                                                     user['rank']['tier'],
+                                                                     user['rank']['points'])
             print(msg)
             embed.add_field(name=f'`{msg}`', value=f"\u200B", inline=False)
         else:
-            msg = '#{0:<4} {1:<20} TIER: {2:<12} POINTS : {3:>2}'.format(user['ranked'], user['username'], user['rank']['tier'],
-                                                               user['rank']['points'])
+            msg = '#{0:<4} {1:<20} TIER: {2:<12} ZP : {3:>2}'.format(user['ranked'], user['username'],
+                                                                     user['rank']['tier'],
+                                                                     user['rank']['points'])
             embed.add_field(name=f'`{msg}`', value=f"\u200B", inline=False)
 
     await interaction.send(embed=embed, ephemeral=True)
@@ -1760,8 +1762,10 @@ async def on_reaction_add(reaction: nextcord.Reaction, user: nextcord.User):
                         await reaction.message.edit(content="Ranked Battle **beginning**")
                         winner = await battle_function.proceed_battle(reaction.message, battle_instance,
                                                                       battle_instance['battle_type'])
-                        points1, t1, new_rank1 = db_query.update_rank(battle_instance["challenger"], True if winner == 1 else False)
-                        points2, t2, new_rank2 = db_query.update_rank(battle_instance["challenged"], True if winner == 2 else False)
+                        points1, t1, new_rank1 = db_query.update_rank(battle_instance["challenger"],
+                                                                      True if winner == 1 else False)
+                        points2, t2, new_rank2 = db_query.update_rank(battle_instance["challenged"],
+                                                                      True if winner == 2 else False)
                         embed = CustomEmbed(title="Match Result", colour=0xfacf5a,
                                             description=f"{battle_instance['username1']}vs{battle_instance['username2']}")
                         embed.add_field(name='\u200B', value='\u200B')
@@ -1769,19 +1773,22 @@ async def on_reaction_add(reaction: nextcord.Reaction, user: nextcord.User):
                                         value=battle_instance['username1'] if winner == 1 else battle_instance[
                                             'username2'],
                                         inline=False)
-                        embed.add_field(name=f"{t1 if winner == 1 else t2} {'- Rank Up ⬆' if (new_rank1 if winner == 1 else new_rank2) is not None else ''}", value='\u200B',
-                                        inline=False)
+                        embed.add_field(
+                            name=f"{t1['tier'] if winner == 1 else t2['tier']} {'⭐ Rank Up `⬆` ⭐' if (new_rank1 if winner == 1 else new_rank2) is not None else ''}",
+                            value=f"{t1['points'] if winner == 1 else t2['points']}  ⬆",
+                            inline=False)
                         embed.add_field(name=f'ZP:\t+{points1 if winner == 1 else points2}', value='\u200B',
                                         inline=False)
                         embed.add_field(name='\u200B', value='\u200B')
                         embed.add_field(name='💀 LOSER 💀',
                                         value=battle_instance['username1'] if winner == 2 else battle_instance[
                                             'username2'], inline=False)
+                        loser_p = points1 if winner == 2 else points2
                         embed.add_field(
-                            name=f"{t1 if winner == 2 else t2} {'- Rank ⬇' if (new_rank1 if winner == 2 else new_rank2) is not None else ''}",
-                            value='\u200B',
+                            name=f"{t1['tier'] if winner == 2 else t2['tier']} {'🤡 Rank Down `⬇` 🤡' if (new_rank1 if winner == 2 else new_rank2) is not None else ''}",
+                            value=f"{t1['points'] if winner == 2 else t2['points']} {'⬇' if loser_p > 0 else '⬆'}",
                             inline=False)
-                        embed.add_field(name=f'ZP:\t-{points1 if winner == 2 else points2}', value='\u200B',
+                        embed.add_field(name=f'ZP:\t{"-" if loser_p > 0 else "+"}{abs(loser_p)}', value='\u200B',
                                         inline=False)
                         await reaction.message.reply(embed=embed)
                 except Exception as e:
